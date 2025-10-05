@@ -218,7 +218,7 @@ async function performPickLockRoll(actor, { skill, skillMod, dc }) {
   }
 }
 
-export async function pickALock(actor = canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null) {
+async function pickALock(actor = canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null) {
   if (!actor) {
     ui.notifications?.warn?.("No actor selected for Pick a Lock");
     return;
@@ -234,4 +234,29 @@ export async function pickALock(actor = canvas?.tokens?.controlled?.[0]?.actor ?
   }
 }
 
-export { SKILL_MOD, getSkillMod };
+const namespace = (globalThis.kazgulsPf2eMacros ??= {});
+namespace.pickALock = pickALock;
+namespace.getSkillMod = getSkillMod;
+Object.defineProperty(namespace, "SKILL_MOD", {
+  get: () => SKILL_MOD,
+  set: (value) => {
+    SKILL_MOD = Number(value) || 0;
+  },
+  configurable: true,
+});
+
+if (game?.modules?.get) {
+  const module = game.modules.get("kazguls-pf2e-macros");
+  if (module) {
+    module.api ??= {};
+    module.api.pickALock = pickALock;
+    module.api.getSkillMod = getSkillMod;
+    Object.defineProperty(module.api, "SKILL_MOD", {
+      get: () => SKILL_MOD,
+      set: (value) => {
+        SKILL_MOD = Number(value) || 0;
+      },
+      configurable: true,
+    });
+  }
+}
