@@ -92,6 +92,64 @@ async function renderPickLockDialog(actor) {
             SKILL_MOD = mod;
           });
         }
+
+        const reqInput =
+          form.querySelector("[data-req-input]") ??
+          form.querySelector("[name=requestCheck]") ??
+          form.querySelector("[name=request]") ??
+          form.querySelector("[name=req]");
+        const reqPayload =
+          form.querySelector("[data-req-payload]") ??
+          form.querySelector("[name=requestPayload]") ??
+          form.querySelector("[name=reqPayload]");
+        const reqDrop =
+          form.querySelector("[data-req-drop]") ??
+          form.querySelector("[data-inline-check-drop]") ??
+          reqInput ??
+          null;
+
+        const updateReqPayload = (rawText) => {
+          if (!reqPayload) return;
+
+          const text = typeof rawText === "string" ? rawText.trim() : "";
+          const match = text.match(/@Check\[[^\]]+\]/i);
+          reqPayload.value = match ? match[0] : "";
+        };
+
+        if (reqInput) {
+          reqInput.addEventListener("input", () => {
+            updateReqPayload(reqInput.value);
+          });
+          reqInput.addEventListener("change", () => {
+            updateReqPayload(reqInput.value);
+          });
+          updateReqPayload(reqInput.value);
+        }
+
+        if (reqDrop) {
+          const assignFromText = (text) => {
+            if (!text) return;
+            if (reqInput) {
+              reqInput.value = text;
+            }
+            updateReqPayload(text);
+          };
+
+          reqDrop.addEventListener("dragenter", (event) => {
+            event.preventDefault();
+          });
+
+          reqDrop.addEventListener("dragover", (event) => {
+            event.preventDefault();
+          });
+
+          reqDrop.addEventListener("drop", (event) => {
+            event.preventDefault();
+            const droppedText = event.dataTransfer?.getData("text/plain");
+            if (!droppedText) return;
+            assignFromText(droppedText.trim());
+          });
+        }
       },
       buttons: {
         start: {
