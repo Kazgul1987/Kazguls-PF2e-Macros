@@ -1,0 +1,28 @@
+<form class="pick-a-lock-form">
+  <div class="form-group">
+    <label for="pick-a-lock-skill">{{localize "PF2E.Skill"}}</label>
+    <select id="pick-a-lock-skill" name="skill">
+      {{#each skills}}
+        <option value="{{this.slug}}">{{this.label}}</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="pick-a-lock-skill-mod">{{localize "PF2E.ModifierLabel"}}</label>
+    <input id="pick-a-lock-skill-mod" type="number" name="skillMod" value="{{skillMod}}" disabled>
+  </div>
+
+  <div class="form-group">
+    <label for="pick-a-lock-dc">{{localize "PF2E.DC"}}</label>
+    <input id="pick-a-lock-dc" type="number" name="dc" min="0">
+  </div>
+
+  <fieldset class="form-group">
+    <legend>{{localize "PF2E.Actor.Creature.Request"}}</legend>
+    <label for="pick-a-lock-req">{{localize "PF2E.Actor.Creature.RequestLabel"}}</label>
+    <textarea id="pick-a-lock-req" name="request" data-req-input rows="3"></textarea>
+    <input type="hidden" name="requestPayload" data-req-payload>
+    <div class="drop-zone" data-req-drop>{{localize "PF2E.DropHere"}}</div>
+  </fieldset>
+</form>
