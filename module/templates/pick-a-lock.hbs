@@ -45,7 +45,7 @@
 
   <div class="form-group">
     <label for="pick-a-lock-interval">{{minutesPerAttemptLabel}}</label>
-    <input id="pick-a-lock-interval" type="number" name="intervalMinutes" min="1" value="{{initialLock.intervalMinutes}}">
+    <input id="pick-a-lock-interval" type="number" name="intervalMinutes" min="0" value="{{initialLock.intervalMinutes}}">
   </div>
 
   <div class="form-group">
@@ -74,11 +74,26 @@
     </label>
   </div>
 
+  <div class="form-group checkbox">
+    <label>
+      <input type="checkbox" name="whisper">
+      {{whisperLabel}}
+    </label>
+  </div>
+
   <fieldset class="form-group">
     <legend>{{localize "PF2E.Actor.Creature.Request"}}</legend>
-    <label for="pick-a-lock-req">{{localize "PF2E.Actor.Creature.RequestLabel"}}</label>
-    <textarea id="pick-a-lock-req" name="request" data-req-input rows="3"></textarea>
-    <input type="hidden" name="requestPayload" data-req-payload>
-    <div class="drop-zone" data-req-drop>{{localize "PF2E.DropHere"}}</div>
+    <div class="form-group checkbox">
+      <label>
+        <input type="checkbox" name="requestRoll" data-req-enable>
+        {{requestRollLabel}}
+      </label>
+    </div>
+    <div class="request-container" data-req-container hidden>
+      <label for="pick-a-lock-req">{{localize "PF2E.Actor.Creature.RequestLabel"}}</label>
+      <textarea id="pick-a-lock-req" name="request" data-req-input rows="3"></textarea>
+      <input type="hidden" name="requestPayload" data-req-payload>
+      <div class="drop-zone" data-req-drop>{{localize "PF2E.DropHere"}}</div>
+    </div>
   </fieldset>
 </form>
