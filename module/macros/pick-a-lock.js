@@ -256,7 +256,9 @@ if (!form) return;
 
 /******************** Parse Grunddaten ********************/
 const skillKey = form.skill;
-const SKILL_MOD = num(form.skillmod, 0);
+const SKILL_MOD = (skillKey === "custom")
+  ? num(form.skillmod, 0)
+  : getSkillMod(actor, skillKey);
 const preset  = LOCK_PRESETS[form.locktype] ?? LOCK_PRESETS["Simple (level 1)"];
 let DC      = (form.locktype !== "Eigene Werte") ? preset.dc     : num(form.dc, preset.dc);
 let NEEDED  = (form.locktype !== "Eigene Werte") ? preset.needed : Math.max(1, num(form.needed, preset.needed));
