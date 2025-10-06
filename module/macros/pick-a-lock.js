@@ -230,7 +230,11 @@ function getSkillMod(actor, key) {
     perception: ["perception", "per"],
   };
 
-  const searchKeys = [...(alias[key] ?? []), key]
+  const aliasMatches = Object.values(alias)
+    .filter((values) => values.includes(key))
+    .flat();
+
+  const searchKeys = [...(alias[key] ?? []), ...aliasMatches, key]
     .filter((value, index, array) => typeof value === "string" && array.indexOf(value) === index);
 
   for (const slug of searchKeys) {
@@ -1034,3 +1038,5 @@ if (game?.modules?.get) {
     });
   }
 }
+
+pickALock();
