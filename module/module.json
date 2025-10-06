@@ -26,7 +26,15 @@
     "macros/pick-a-lock.js"
   ],
   "styles": [],
-  "packs": [],
+  "packs": [
+    {
+      "type": "Macro",
+      "name": "macros",
+      "label": "Kazgul's PF2e Macros",
+      "path": "packs/macros.db",
+      "system": "pf2e"
+    }
+  ],
   "languages": [],
   "relationships": {
     "systems": [
