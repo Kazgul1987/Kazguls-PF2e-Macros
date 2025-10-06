@@ -322,19 +322,26 @@ const finish =
   (broken && STOPCF)    ? `<b style="color:#b00">Abbruch: Kritischer Fehlschlag (Werkzeugbruch)</b>` :
   (tries >= MAX_TRIES)  ? `<b style="color:orange">Abbruch: Versuchs-Limit erreicht</b>` :
                           `<b>Nicht geschafft</b>`;
+const finishText = finish.replace(/<[^>]*>/g, "");
 
-const rows = log.map(r=>{
-  const color = (r.deg===3?"#0a0":r.deg===2?"#060":r.deg===0?"#b00":"#666");
-  const grad  = ["Krit-Fehl","Fehl","Erfolg","Krit-Erfolg"][r.deg];
-  return `<tr>
-    <td style="text-align:right">${r.tries}</td>
-    <td style="text-align:center">${r.face}</td>
-    <td style="text-align:right">${r.total}</td>
-    <td style="color:${color}">${grad}</td>
-    <td style="text-align:right">+${r.step}</td>
-    <td>${r.note}</td>
-  </tr>`;
-}).join("");
+const historySummary = {
+  skill: skillLabelMap[skillKey] ?? skillKey,
+  modifier: MOD,
+  dc: DC,
+  tries,
+  progress,
+  needed: NEEDED,
+  minutes,
+  mode: SILENT ? "Silent" : "Foundry",
+  finish: finishText
+};
+const historyButtonNote = log.length ? "" : "<div style=\"font-size:12px;opacity:.8\">Keine Versuche protokolliert.</div>";
+const historySectionHTML = `
+  <div class="pf2e-lockpicker-history-controls" style="margin:0.5rem 0; display:flex; flex-direction:column; gap:0.25rem;">
+    <button class="pf2e-lockpicker-history-btn" data-msg="__MSGID__">Würfelverlauf anzeigen</button>
+    ${historyButtonNote}
+  </div>
+`;
 
 // Request-Roll
 const reqEnabled = on(form.reqEnable);
@@ -389,97 +396,186 @@ const message = await ChatMessage.create({
         <p><b>Schlosstyp:</b> ${form.locktype} | <b>DC:</b> ${DC} | <b>Erfolge:</b> ${NEEDED} | <b>Modus:</b> ${SILENT?"Silent":"Foundry"}</p>
         <p><b>Versuche:</b> ${tries} | <b>Fortschritt:</b> ${progress}/${NEEDED} | <b>Zeit:</b> ${minutes} Min.</p>
         <p>${finish}${broken && STOPCF ? "<br/><i>Werkzeuge beschädigt – Ersatzpicks nötig.</i>" : ""}</p>
-        <details><summary>Würfelverlauf</summary>
-          <table style="width:100%; border-collapse:collapse;">
-            <thead><tr><th>#</th><th>d20</th><th>Gesamt</th><th>Grad</th><th>Fortschr.</th><th>Notiz</th></tr></thead>
-            <tbody>${rows || "<tr><td colspan='6'>Keine Versuche</td></tr>"}</tbody>
-          </table>
-        </details>
+        ${historySectionHTML.replace("__MSGID__", "PENDING")}
         ${reqSectionHTML.replace("__MSGID__", "PENDING")}
       </section>
     </div>
   `,
   whisper: (WHISPER ? [game.user.id] : []),
-  flags: { "pf2e-lockpicker": { req: (reqData ? { type: reqData.type, dc: reqData.dc } : null) } }
+  flags: {
+    "pf2e-lockpicker": {
+      req: (reqData ? { type: reqData.type, dc: reqData.dc } : null),
+      history: log,
+      historySummary
+    }
+  }
 });
 
 // Button-Handler binden
 const mId = message.id;
 const html = await message.getHTML();
 html.find(".pf2e-reqroll-btn").attr("data-msg", mId);
+html.find(".pf2e-lockpicker-history-btn").attr("data-msg", mId);
 
 // Einmaliger Hook: Button klickt → würfeln bis Erfolg/Krit oder Krit-Fehlschlag
 Hooks.on("renderChatMessage", function handler(msg, jHtml) {
   if (msg.id !== mId) return;
-  const btn = jHtml.find(".pf2e-reqroll-btn");
-  if (!btn.length) return;
 
-  btn.off("click").on("click", async ()=>{
-    const clickActor = canvas.tokens?.controlled[0]?.actor ?? game.user.character;
-    if (!clickActor) return ui.notifications.warn("Bitte einen Token auswählen (für Request-Roll).");
+  const reqBtn = jHtml.find(".pf2e-reqroll-btn");
+  if (reqBtn.length) {
+    reqBtn.off("click").on("click", async ()=>{
+      const clickActor = canvas.tokens?.controlled[0]?.actor ?? game.user.character;
+      if (!clickActor) return ui.notifications.warn("Bitte einen Token auswählen (für Request-Roll).");
 
-    const type = btn.attr("data-type") || msg.getFlag("pf2e-lockpicker","req")?.type || "thievery";
-    const dc   = Number(btn.attr("data-dc") || msg.getFlag("pf2e-lockpicker","req")?.dc || 0);
-    if (!Number.isFinite(dc) || dc<=0) return ui.notifications.error("Request-Roll: Ungültiger DC.");
+      const type = reqBtn.attr("data-type") || msg.getFlag("pf2e-lockpicker","req")?.type || "thievery";
+      const dc   = Number(reqBtn.attr("data-dc") || msg.getFlag("pf2e-lockpicker","req")?.dc || 0);
+      if (!Number.isFinite(dc) || dc<=0) return ui.notifications.error("Request-Roll: Ungültiger DC.");
 
-    const mod = getSkillMod(clickActor, type) ?? 0;
-    const SIL = true; // Request-Rolls leise
-    const d20f = ()=> SIL ? rollD20Silent() : rollD20Foundry();
+      const mod = getSkillMod(clickActor, type) ?? 0;
+      const SIL = true; // Request-Rolls leise
+      const d20f = ()=> SIL ? rollD20Silent() : rollD20Foundry();
 
-    function deg(total, dc, face) {
-      let g;
-      if (total >= dc+10) g=3; else if (total>=dc) g=2; else if (total<=dc-10) g=0; else g=1;
-      if (face===20) g=Math.min(3,g+1);
-      if (face===1)  g=Math.max(0,g-1);
-      return g;
-    }
+      function deg(total, dc, face) {
+        let g;
+        if (total >= dc+10) g=3; else if (total>=dc) g=2; else if (total<=dc-10) g=0; else g=1;
+        if (face===20) g=Math.min(3,g+1);
+        if (face===1)  g=Math.max(0,g-1);
+        return g;
+      }
 
-    const maxLoops = 200;
-    let i=0; const logs=[];
-    let stopReason = "—";
-    while (i<maxLoops) {
-      i++;
-      const face = d20f();
-      const total = face + mod;
-      const g = deg(total, dc, face);
-      logs.push({i, face, total, g});
-      if (g===3) { stopReason = "Kritischer Erfolg"; break; }
-      if (g===2) { stopReason = "Erfolg"; break; }
-      if (g===0) { stopReason = "Kritischer Fehlschlag"; break; }
-      // g===1 → weiter
-    }
+      const maxLoops = 200;
+      let i=0; const logs=[];
+      let stopReason = "—";
+      while (i<maxLoops) {
+        i++;
+        const face = d20f();
+        const total = face + mod;
+        const g = deg(total, dc, face);
+        logs.push({i, face, total, g});
+        if (g===3) { stopReason = "Kritischer Erfolg"; break; }
+        if (g===2) { stopReason = "Erfolg"; break; }
+        if (g===0) { stopReason = "Kritischer Fehlschlag"; break; }
+        // g===1 → weiter
+      }
 
-    const rows = logs.map(r=>{
-      const color = (r.g===3?"#0a0":r.g===2?"#060":r.g===0?"#b00":"#666");
-      const grad  = ["Krit-Fehl","Fehl","Erfolg","Krit-Erfolg"][r.g];
-      return `<tr>
-        <td style="text-align:right">${r.i}</td>
-        <td style="text-align:center">${r.face}</td>
-        <td style="text-align:right">${r.total}</td>
-        <td style="color:${color}">${grad}</td>
-      </tr>`;
-    }).join("");
+      const rows = logs.map(r=>{
+        const color = (r.g===3?"#0a0":r.g===2?"#060":r.g===0?"#b00":"#666");
+        const grad  = ["Krit-Fehl","Fehl","Erfolg","Krit-Erfolg"][r.g];
+        return `<tr>
+          <td style="text-align:right">${r.i}</td>
+          <td style="text-align:center">${r.face}</td>
+          <td style="text-align:right">${r.total}</td>
+          <td style="color:${color}">${grad}</td>
+        </tr>`;
+      }).join("");
 
-    const out = `
-      <div class="pf2e chat-card">
-        <header class="card-header flexrow">
-          <img src="static/icons/equipment/held-items/key-short-gold.webp" width="36" height="36"/>
-          <h3>Request-Roll Ergebnis – ${clickActor.name}</h3>
-        </header>
-        <section class="card-content">
-          <p><b>Check:</b> ${type} vs. DC ${dc} | <b>Mod:</b> ${mod>=0?"+":""}${mod}</p>
-          <p><b>Stop:</b> ${stopReason} &nbsp; | &nbsp; <b>Würfe:</b> ${logs.length}</p>
-          <details><summary>Verlauf</summary>
-            <table style="width:100%; border-collapse:collapse;">
-              <thead><tr><th>#</th><th>d20</th><th>Gesamt</th><th>Grad</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </details>
-        </section>
-      </div>
-    `;
-    ChatMessage.create({ speaker: ChatMessage.getSpeaker({actor: clickActor}), content: out });
-  });
+      const out = `
+        <div class="pf2e chat-card">
+          <header class="card-header flexrow">
+            <img src="static/icons/equipment/held-items/key-short-gold.webp" width="36" height="36"/>
+            <h3>Request-Roll Ergebnis – ${clickActor.name}</h3>
+          </header>
+          <section class="card-content">
+            <p><b>Check:</b> ${type} vs. DC ${dc} | <b>Mod:</b> ${mod>=0?"+":""}${mod}</p>
+            <p><b>Stop:</b> ${stopReason} &nbsp; | &nbsp; <b>Würfe:</b> ${logs.length}</p>
+            <details><summary>Verlauf</summary>
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr><th>#</th><th>d20</th><th>Gesamt</th><th>Grad</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </details>
+          </section>
+        </div>
+      `;
+      ChatMessage.create({ speaker: ChatMessage.getSpeaker({actor: clickActor}), content: out });
+    });
+  }
+
+  const historyBtn = jHtml.find(".pf2e-lockpicker-history-btn");
+  if (historyBtn.length) {
+    historyBtn.off("click").on("click", () => {
+      const historyLog = msg.getFlag("pf2e-lockpicker", "history");
+      const summary = msg.getFlag("pf2e-lockpicker", "historySummary") ?? {};
+      const logs = Array.isArray(historyLog) ? historyLog : [];
+
+      const escapeHtml = (value) => {
+        const str = String(value ?? "");
+        return str.replace(/[&<>"']/g, (ch) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        })[ch] || ch);
+      };
+
+      const summaryEntries = [];
+      if (summary.skill) summaryEntries.push(["Skill", summary.skill]);
+      if (typeof summary.modifier === "number") summaryEntries.push(["Modifikator", `${summary.modifier>=0?"+":""}${summary.modifier}`]);
+      if (summary.dc !== undefined) summaryEntries.push(["DC", summary.dc]);
+      if (summary.mode) summaryEntries.push(["Modus", summary.mode]);
+      if (summary.tries !== undefined) summaryEntries.push(["Versuche", summary.tries]);
+      if (summary.progress !== undefined && summary.needed !== undefined) summaryEntries.push(["Fortschritt", `${summary.progress}/${summary.needed}`]);
+      if (summary.minutes !== undefined) summaryEntries.push(["Zeit (Minuten)", summary.minutes]);
+      if (summary.finish) summaryEntries.push(["Ergebnis", summary.finish]);
+
+      const summaryHtml = summaryEntries.length
+        ? `<table style="width:100%; border-collapse:collapse; margin-bottom:0.5rem;">${summaryEntries.map(([label, value]) => `
+              <tr>
+                <th style="text-align:left; padding:0.25rem 0.5rem; border-bottom:1px solid rgba(0,0,0,0.1);">${escapeHtml(label)}</th>
+                <td style="padding:0.25rem 0.5rem; border-bottom:1px solid rgba(0,0,0,0.1);">${escapeHtml(value)}</td>
+              </tr>
+            `).join("")}</table>`
+        : "";
+
+      const historyRows = logs.length
+        ? logs.map((r, idx) => {
+            const degIdx = Number.isFinite(r.deg) ? Math.max(0, Math.min(3, Number(r.deg))) : 1;
+            const colors = ["#b00", "#666", "#060", "#0a0"];
+            const labels = ["Kritischer Fehlschlag", "Fehlschlag", "Erfolg", "Kritischer Erfolg"];
+            const triesVal = Number.isFinite(r.tries) ? r.tries : (idx + 1);
+            const faceVal = Number.isFinite(r.face) ? r.face : "—";
+            const totalVal = Number.isFinite(r.total) ? r.total : "—";
+            const stepVal = Number.isFinite(r.step) ? r.step : 0;
+            const noteVal = r.note ?? "";
+            return `<tr>
+              <td style="text-align:right; padding:0.25rem;">${escapeHtml(triesVal)}</td>
+              <td style="text-align:center; padding:0.25rem;">${escapeHtml(faceVal)}</td>
+              <td style="text-align:right; padding:0.25rem;">${escapeHtml(totalVal)}</td>
+              <td style="color:${colors[degIdx]}; padding:0.25rem; white-space:nowrap;">${escapeHtml(labels[degIdx])}</td>
+              <td style="text-align:right; padding:0.25rem;">${stepVal >= 0 ? "+" : ""}${escapeHtml(stepVal)}</td>
+              <td style="padding:0.25rem;">${escapeHtml(noteVal)}</td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="6" style="text-align:center; padding:0.5rem;">Keine Versuche protokolliert.</td></tr>`;
+
+      const dialogContent = `
+        <div class="pf2e-lockpicker-history-dialog">
+          ${summaryHtml}
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:right; padding:0.25rem;">#</th>
+                <th style="text-align:center; padding:0.25rem;">d20</th>
+                <th style="text-align:right; padding:0.25rem;">Gesamt</th>
+                <th style="text-align:left; padding:0.25rem;">Grad</th>
+                <th style="text-align:right; padding:0.25rem;">Fortschr.</th>
+                <th style="text-align:left; padding:0.25rem;">Notiz</th>
+              </tr>
+            </thead>
+            <tbody>${historyRows}</tbody>
+          </table>
+        </div>
+      `;
+
+      new Dialog({
+        title: "Pick a Lock – Würfelverlauf",
+        content: dialogContent,
+        buttons: { close: { label: "Schließen" } },
+        default: "close"
+      }).render(true);
+    });
+  }
 
   // nur einmal binden
   Hooks.off("renderChatMessage", handler);
