@@ -268,6 +268,13 @@ const injectSellButton = (sheet, html) => {
     return element;
   };
 
+  const nativeSidebarButtons = findCandidate("[data-sidebar-buttons]");
+  if (nativeSidebarButtons) {
+    applySidebarStyles();
+    nativeSidebarButtons.append(button);
+    return;
+  }
+
   const controlButtons = findCandidate(".control-buttons");
   if (controlButtons) {
     applySidebarStyles();
