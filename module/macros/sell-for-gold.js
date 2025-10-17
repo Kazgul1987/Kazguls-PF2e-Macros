@@ -1,4 +1,5 @@
 const SELL_LOOT_ACTOR_NAME = "Sell";
+const SELL_PROCEEDS_DEFAULT_NAME = "Sale Proceeds";
 const COIN_VALUES = { pp: 1000, gp: 100, sp: 10, cp: 1 };
 
 const readCoinObject = (source) => {
@@ -100,6 +101,16 @@ const formatCoins = (coins) => {
   return parts.length ? parts.join(", ") : "0 cp";
 };
 
+const getFolderId = (folder) => {
+  if (!folder) return null;
+  if (typeof folder === "string") return folder;
+  if (typeof folder === "object") {
+    if (typeof folder.id === "string") return folder.id;
+    if (typeof folder._id === "string") return folder._id;
+  }
+  return null;
+};
+
 const getItemQuantity = (item) => {
   const value = Number(item?.system?.quantity ?? item?.quantity ?? 0);
   return Number.isFinite(value) && value > 0 ? value : 0;
@@ -161,10 +172,87 @@ const performSale = async (actor, percentage) => {
 
   const copperEarned = Math.max(0, Math.floor(copperTotal + 0.0001));
 
+  let saleTreasureItem = null;
+  let saleTreasureItemName = null;
+  let totalCopperAfterSale = 0;
+
   if (copperEarned > 0) {
-    const currentCopper = coinsToCopper(actor.system?.currencies ?? {});
-    const updatedCoins = copperToCoins(currentCopper + copperEarned);
-    await actor.update({ "system.currencies": updatedCoins });
+    saleTreasureItemName =
+      game.i18n.localize?.("PF2E.SellProceedsItemName") ??
+      game.i18n.localize?.("PF2E.SellProceeds") ??
+      SELL_PROCEEDS_DEFAULT_NAME;
+
+    let sellFolderId = null;
+    const sellFolderItem = items.find((item) => item?.folder?.name === SELL_LOOT_ACTOR_NAME);
+    sellFolderId = getFolderId(sellFolderItem?.folder);
+
+    if (!sellFolderId) {
+      const folderCollections = [
+        actor.items?.directory?.folders,
+        actor.folders,
+        game?.folders,
+      ];
+      for (const collection of folderCollections) {
+        if (typeof collection?.find !== "function") continue;
+        const found = collection.find((folder) => {
+          if (!folder) return false;
+          if (folder?.name !== SELL_LOOT_ACTOR_NAME) return false;
+          if (folder?.type && folder.type !== "Item") return false;
+          return true;
+        });
+        if (found?.id) {
+          sellFolderId = found.id;
+          break;
+        }
+      }
+    }
+
+    const treasureItems = actor.items.filter((item) => item.type === "treasure");
+    let existingTreasure = null;
+
+    if (sellFolderId) {
+      existingTreasure = treasureItems.find(
+        (item) => getFolderId(item.folder) === sellFolderId
+      );
+    }
+
+    if (!existingTreasure) {
+      existingTreasure = treasureItems.find(
+        (item) => item.folder?.name === SELL_LOOT_ACTOR_NAME
+      );
+    }
+
+    if (!existingTreasure) {
+      existingTreasure = treasureItems.find((item) => item.name === saleTreasureItemName);
+    }
+
+    if (existingTreasure) {
+      const existingCopper = coinsToCopper(existingTreasure.system?.price?.value);
+      totalCopperAfterSale = existingCopper + copperEarned;
+      const updatedCoins = copperToCoins(totalCopperAfterSale);
+      const updatedItems = await actor.updateEmbeddedDocuments("Item", [
+        { _id: existingTreasure.id, "system.price.value": updatedCoins },
+      ]);
+      saleTreasureItem = updatedItems?.[0] ?? existingTreasure;
+      saleTreasureItemName = saleTreasureItem?.name ?? saleTreasureItemName;
+    } else {
+      totalCopperAfterSale = copperEarned;
+      const newItemData = {
+        name: saleTreasureItemName,
+        type: "treasure",
+        system: {
+          quantity: 1,
+          price: {
+            value: copperToCoins(totalCopperAfterSale),
+            per: 1,
+          },
+        },
+      };
+      if (sellFolderId) newItemData.folder = sellFolderId;
+      const createdItems = await actor.createEmbeddedDocuments("Item", [newItemData]);
+      saleTreasureItem = createdItems?.[0] ?? null;
+      saleTreasureItemName = saleTreasureItem?.name ?? saleTreasureItemName;
+    }
   }
 
   const itemIds = sellable.map((item) => item.id).filter(Boolean);
@@ -172,7 +260,12 @@ const performSale = async (actor, percentage) => {
     await actor.deleteEmbeddedDocuments("Item", itemIds);
   }
 
-  const message = copperEarned > 0 ? formatCoins(copperToCoins(copperEarned)) : "0 cp";
+  const message =
+    totalCopperAfterSale > 0 && saleTreasureItemName
+      ? `${saleTreasureItemName}: ${formatCoins(copperToCoins(totalCopperAfterSale))}`
+      : copperEarned > 0
+      ? formatCoins(copperToCoins(copperEarned))
+      : "0 cp";
   const soldCount = sellable.length;
   ui.notifications?.info?.(
     `${game.i18n.localize?.("PF2E.SellPromptTitle") ?? "Sell for gold"}: ${soldCount} ${soldCount === 1 ? "item" : "items"} → ${message}`
