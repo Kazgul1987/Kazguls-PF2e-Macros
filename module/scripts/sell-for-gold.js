@@ -222,7 +222,7 @@ Hooks.on("renderLootSheetPF2e", (sheet, html) => {
   const actor = sheet?.actor;
   if (!actor || actor.type !== "loot" || actor.name !== SELL_LOOT_ACTOR_NAME) return;
 
-  const root = html?.[0];
+  const root = html instanceof HTMLElement ? html : html?.[0];
   if (!root) return;
 
   if (root.querySelector(`.${SELL_BUTTON_CLASS}`)) return;
@@ -236,13 +236,20 @@ Hooks.on("renderLootSheetPF2e", (sheet, html) => {
   const headerActions = root.querySelector(".sheet-header .header-actions") ?? root.querySelector(".header-actions");
   if (headerActions) {
     headerActions.append(button);
-  } else {
-    const sheetHeader = root.querySelector(".sheet-header") ?? root.querySelector("header");
-    if (sheetHeader) {
-      const container = document.createElement("div");
-      container.classList.add("header-actions");
-      container.appendChild(button);
-      sheetHeader.appendChild(container);
-    }
+    return;
+  }
+
+  const sidebarButtons = root.querySelector(".sheet-sidebar .sidebar-buttons");
+  if (sidebarButtons) {
+    sidebarButtons.append(button);
+    return;
+  }
+
+  const sheetHeader = root.querySelector(".sheet-header") ?? root.querySelector("header");
+  if (sheetHeader) {
+    const container = document.createElement("div");
+    container.classList.add("header-actions");
+    container.appendChild(button);
+    sheetHeader.appendChild(container);
   }
 });
