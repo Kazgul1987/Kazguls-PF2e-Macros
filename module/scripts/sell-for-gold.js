@@ -222,21 +222,21 @@ const injectSellButton = (sheet, html) => {
   const actor = sheet?.actor;
   if (!actor || actor.type !== "loot" || actor.name !== SELL_LOOT_ACTOR_NAME) return;
 
-  let root = null;
   const sheetElement = sheet?.element;
+  let host = null;
   if (sheetElement instanceof HTMLElement) {
-    root = sheetElement;
+    host = sheetElement;
   } else if (sheetElement && typeof sheetElement === "object") {
-    root = sheetElement[0] instanceof HTMLElement ? sheetElement[0] : null;
+    host = sheetElement[0] instanceof HTMLElement ? sheetElement[0] : null;
   }
 
-  if (!root) {
-    root = html instanceof HTMLElement ? html : html?.[0];
-  }
+  const htmlElement = html instanceof HTMLElement ? html : html?.[0];
 
-  if (!root && sheet?.id) {
-    root = document.getElementById(sheet.id);
-  }
+  let root =
+    host?.shadowRoot ??
+    (host instanceof HTMLElement ? host : null) ??
+    htmlElement ??
+    (sheet?.id ? document.getElementById(sheet.id) : null);
 
   if (!root) return;
 
@@ -245,7 +245,7 @@ const injectSellButton = (sheet, html) => {
   const button = document.createElement("button");
   button.type = "button";
   button.classList.add(SELL_BUTTON_CLASS);
-  button.innerHTML = `<i class="fas fa-coins"></i> <span>${game.i18n.localize?.("PF2E.SellPromptTitle") ?? "Sell for gold"}</span>`;
+  button.innerHTML = `<i class="fa-solid fa-coins"></i> <span>${game.i18n.localize?.("PF2E.SellPromptTitle") ?? "Sell for gold"}</span>`;
   button.addEventListener("click", () => openSellDialog(actor));
 
   const styleButtonForSidebar = (container) => {
