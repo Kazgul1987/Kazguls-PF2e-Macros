@@ -1,5 +1,4 @@
 const MODULE_ID = "kazguls-pf2e-macros";
-const SELL_LOOT_ACTOR_NAME = "Sell";
 const SELL_BUTTON_CLASS = "sell-for-gold__button";
 const COIN_VALUES = { pp: 1000, gp: 100, sp: 10, cp: 1 };
 
@@ -220,7 +219,7 @@ const openSellDialog = (actor) => {
 
 const injectSellButton = (sheet, html) => {
   const actor = sheet?.actor;
-  if (!actor || actor.type !== "loot" || actor.name !== SELL_LOOT_ACTOR_NAME) return;
+  if (actor?.type !== "loot") return;
 
   const sheetElement = sheet?.element;
   let host = null;
@@ -323,10 +322,5 @@ Hooks.on("renderLootSheetPF2e", (sheet, html) => {
 });
 
 Hooks.on("renderActorSheetPF2e", (sheet, html) => {
-  const actor = sheet?.actor;
-  if (actor?.type === "loot" && actor?.name === SELL_LOOT_ACTOR_NAME) {
-    console.debug(`${MODULE_ID} | renderActorSheetPF2e hook fired for Sell actor`);
-  }
-
   injectSellButton(sheet, html);
 });
