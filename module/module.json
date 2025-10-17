@@ -24,8 +24,7 @@
   "esmodules": [],
   "scripts": [
     "macros/pick-a-lock.js",
-    "scripts/journal-counter.js",
-    "scripts/sell-for-gold.js"
+    "scripts/journal-counter.js"
   ],
   "styles": [],
   "packs": [
