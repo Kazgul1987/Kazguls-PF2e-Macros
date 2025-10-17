@@ -23,7 +23,8 @@
   "flags": {},
   "esmodules": [],
   "scripts": [
-    "macros/pick-a-lock.js"
+    "macros/pick-a-lock.js",
+    "scripts/journal-counter.js"
   ],
   "styles": [],
   "packs": [
