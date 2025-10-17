@@ -218,8 +218,7 @@ const openSellDialog = (actor) => {
   dialog.render(true);
 };
 
-Hooks.on("renderLootSheetPF2e", (sheet, html) => {
-  const actor = sheet?.actor;
+const injectSellButton = (actor, html) => {
   if (!actor || actor.type !== "loot" || actor.name !== SELL_LOOT_ACTOR_NAME) return;
 
   const root = html instanceof HTMLElement ? html : html?.[0];
@@ -252,4 +251,17 @@ Hooks.on("renderLootSheetPF2e", (sheet, html) => {
     container.appendChild(button);
     sheetHeader.appendChild(container);
   }
+};
+
+Hooks.on("renderLootSheetPF2e", (sheet, html) => {
+  injectSellButton(sheet?.actor, html);
+});
+
+Hooks.on("renderActorSheetPF2e", (sheet, html) => {
+  const actor = sheet?.actor;
+  if (actor?.type === "loot" && actor?.name === SELL_LOOT_ACTOR_NAME) {
+    console.debug(`${MODULE_ID} | renderActorSheetPF2e hook fired for Sell actor`);
+  }
+
+  injectSellButton(actor, html);
 });
