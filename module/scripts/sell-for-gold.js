@@ -231,87 +231,81 @@ const injectSellButton = (sheet, html) => {
   }
 
   const htmlElement = html instanceof HTMLElement ? html : html?.[0];
+  const fallback = sheet?.id ? document.getElementById(sheet.id) : null;
 
-  let root =
-    host?.shadowRoot ??
-    (host instanceof HTMLElement ? host : null) ??
-    htmlElement ??
-    (sheet?.id ? document.getElementById(sheet.id) : null);
-
+  const root = host?.shadowRoot ?? host ?? htmlElement ?? fallback;
   if (!root) return;
 
   if (root.querySelector(`.${SELL_BUTTON_CLASS}`)) return;
 
   const button = document.createElement("button");
   button.type = "button";
-  button.classList.add(SELL_BUTTON_CLASS);
+  button.classList.add(SELL_BUTTON_CLASS, "pf2e-action");
   button.innerHTML = `<i class="fa-solid fa-coins"></i> <span>${game.i18n.localize?.("PF2E.SellPromptTitle") ?? "Sell for gold"}</span>`;
   button.addEventListener("click", () => openSellDialog(actor));
 
-  const styleButtonForSidebar = (container) => {
-    button.classList.remove("header-button");
+  const applySidebarStyles = () => {
     button.classList.add("pf2e-action");
-    const referenceButton = container.querySelector("button");
-    if (referenceButton) {
-      for (const cls of referenceButton.classList) {
-        if (cls && cls !== SELL_BUTTON_CLASS) button.classList.add(cls);
-      }
-    }
-
+    button.classList.remove("header-button");
     button.style.display = "block";
     button.style.width = "100%";
     button.style.marginTop = "0.5rem";
     button.style.marginBottom = "0";
   };
 
-  const styleButtonForHeader = () => {
-    button.classList.add("header-button");
-    button.classList.remove("pf2e-action");
+  const applyHeaderStyles = () => {
+    button.classList.add("header-button", "pf2e-action");
     button.style.removeProperty("display");
     button.style.removeProperty("width");
     button.style.removeProperty("margin-top");
     button.style.removeProperty("margin-bottom");
   };
 
-  const sidebarSelectors = [
-    ".sheet-sidebar .control-buttons",
-    ".sheet-sidebar .sidebar-buttons",
-    ".sheet-sidebar .action-buttons",
-    ".sidebar-buttons",
-    ".action-buttons",
-  ];
+  const findCandidate = (selector, rejectIfHeader = false) => {
+    const element = root.querySelector(selector);
+    if (!(element instanceof HTMLElement)) return null;
+    if (rejectIfHeader && element.closest?.(".sheet-header")) return null;
+    return element;
+  };
 
-  const sidebarTargetEntry = sidebarSelectors
-    .map((selector) => ({ selector, element: root.querySelector(selector) }))
-    .find(({ element, selector }) =>
-      element instanceof HTMLElement &&
-      (element.closest?.(".sheet-sidebar") || ![".sidebar-buttons", ".action-buttons"].includes(selector))
-    );
-
-  if (sidebarTargetEntry?.element) {
-    const sidebarTarget = sidebarTargetEntry.element;
-    styleButtonForSidebar(sidebarTarget);
-    sidebarTarget.append(button);
+  const controlButtons = findCandidate(".control-buttons");
+  if (controlButtons) {
+    applySidebarStyles();
+    controlButtons.append(button);
     return;
   }
 
+  const sidebarButtons = findCandidate(".sidebar-buttons");
+  if (sidebarButtons) {
+    applySidebarStyles();
+    sidebarButtons.append(button);
+    return;
+  }
+
+  const actionButtons = findCandidate(".action-buttons", true);
+  if (actionButtons) {
+    applySidebarStyles();
+    actionButtons.append(button);
+    return;
+  }
 
   const headerActions =
-    root.querySelector(".sheet-header .header-actions") ??
-    root.querySelector(".sheet-header .action-buttons") ??
-    root.querySelector(".header-actions");
+    findCandidate(".sheet-header .header-actions") ??
+    findCandidate(".sheet-header .action-buttons") ??
+    findCandidate("header .header-actions") ??
+    findCandidate("header .action-buttons");
 
   if (headerActions) {
-    styleButtonForHeader();
+    applyHeaderStyles();
     headerActions.append(button);
     return;
   }
 
-  const sheetHeader = root.querySelector(".sheet-header") ?? root.querySelector("header");
+  const sheetHeader = findCandidate(".sheet-header") ?? findCandidate("header");
   if (sheetHeader) {
     const container = document.createElement("div");
     container.classList.add("header-actions", "action-buttons");
-    styleButtonForHeader();
+    applyHeaderStyles();
     container.appendChild(button);
     sheetHeader.appendChild(container);
   }
