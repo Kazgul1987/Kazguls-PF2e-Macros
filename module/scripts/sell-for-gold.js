@@ -218,10 +218,26 @@ const openSellDialog = (actor) => {
   dialog.render(true);
 };
 
-const injectSellButton = (actor, html) => {
+const injectSellButton = (sheet, html) => {
+  const actor = sheet?.actor;
   if (!actor || actor.type !== "loot" || actor.name !== SELL_LOOT_ACTOR_NAME) return;
 
-  const root = html instanceof HTMLElement ? html : html?.[0];
+  let root = null;
+  const sheetElement = sheet?.element;
+  if (sheetElement instanceof HTMLElement) {
+    root = sheetElement;
+  } else if (sheetElement && typeof sheetElement === "object") {
+    root = sheetElement[0] instanceof HTMLElement ? sheetElement[0] : null;
+  }
+
+  if (!root) {
+    root = html instanceof HTMLElement ? html : html?.[0];
+  }
+
+  if (!root && sheet?.id) {
+    root = document.getElementById(sheet.id);
+  }
+
   if (!root) return;
 
   if (root.querySelector(`.${SELL_BUTTON_CLASS}`)) return;
@@ -254,7 +270,7 @@ const injectSellButton = (actor, html) => {
 };
 
 Hooks.on("renderLootSheetPF2e", (sheet, html) => {
-  injectSellButton(sheet?.actor, html);
+  injectSellButton(sheet, html);
 });
 
 Hooks.on("renderActorSheetPF2e", (sheet, html) => {
@@ -263,5 +279,5 @@ Hooks.on("renderActorSheetPF2e", (sheet, html) => {
     console.debug(`${MODULE_ID} | renderActorSheetPF2e hook fired for Sell actor`);
   }
 
-  injectSellButton(actor, html);
+  injectSellButton(sheet, html);
 });
