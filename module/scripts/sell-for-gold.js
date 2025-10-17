@@ -244,26 +244,74 @@ const injectSellButton = (sheet, html) => {
 
   const button = document.createElement("button");
   button.type = "button";
-  button.classList.add("header-button", SELL_BUTTON_CLASS);
+  button.classList.add(SELL_BUTTON_CLASS);
   button.innerHTML = `<i class="fas fa-coins"></i> <span>${game.i18n.localize?.("PF2E.SellPromptTitle") ?? "Sell for gold"}</span>`;
   button.addEventListener("click", () => openSellDialog(actor));
 
-  const headerActions = root.querySelector(".sheet-header .header-actions") ?? root.querySelector(".header-actions");
-  if (headerActions) {
-    headerActions.append(button);
+  const styleButtonForSidebar = (container) => {
+    button.classList.remove("header-button");
+    button.classList.add("pf2e-action");
+    const referenceButton = container.querySelector("button");
+    if (referenceButton) {
+      for (const cls of referenceButton.classList) {
+        if (cls && cls !== SELL_BUTTON_CLASS) button.classList.add(cls);
+      }
+    }
+
+    button.style.display = "block";
+    button.style.width = "100%";
+    button.style.marginTop = "0.5rem";
+    button.style.marginBottom = "0";
+  };
+
+  const styleButtonForHeader = () => {
+    button.classList.add("header-button");
+    button.classList.remove("pf2e-action");
+    button.style.removeProperty("display");
+    button.style.removeProperty("width");
+    button.style.removeProperty("margin-top");
+    button.style.removeProperty("margin-bottom");
+  };
+
+  const sidebarSelectors = [
+    ".sheet-sidebar .control-buttons",
+    ".sheet-sidebar .sidebar-buttons",
+    ".sheet-sidebar .action-buttons",
+    ".sidebar-buttons",
+    ".action-buttons",
+  ];
+
+  const sidebarTargetEntry = sidebarSelectors
+    .map((selector) => ({ selector, element: root.querySelector(selector) }))
+    .find(({ element, selector }) =>
+      element instanceof HTMLElement &&
+      (element.closest?.(".sheet-sidebar") || ![".sidebar-buttons", ".action-buttons"].includes(selector))
+    );
+
+  if (sidebarTargetEntry?.element) {
+    const sidebarTarget = sidebarTargetEntry.element;
+    styleButtonForSidebar(sidebarTarget);
+    sidebarTarget.append(button);
     return;
   }
 
-  const sidebarButtons = root.querySelector(".sheet-sidebar .sidebar-buttons");
-  if (sidebarButtons) {
-    sidebarButtons.append(button);
+
+  const headerActions =
+    root.querySelector(".sheet-header .header-actions") ??
+    root.querySelector(".sheet-header .action-buttons") ??
+    root.querySelector(".header-actions");
+
+  if (headerActions) {
+    styleButtonForHeader();
+    headerActions.append(button);
     return;
   }
 
   const sheetHeader = root.querySelector(".sheet-header") ?? root.querySelector("header");
   if (sheetHeader) {
     const container = document.createElement("div");
-    container.classList.add("header-actions");
+    container.classList.add("header-actions", "action-buttons");
+    styleButtonForHeader();
     container.appendChild(button);
     sheetHeader.appendChild(container);
   }
