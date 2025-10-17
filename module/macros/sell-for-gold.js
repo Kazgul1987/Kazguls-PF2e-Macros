@@ -151,7 +151,54 @@ const getItemUnitPriceInCopper = (item) => {
 
 const performSale = async (actor, percentage) => {
   const items = Array.from(actor?.items ?? []);
-  const sellable = items.filter((item) => getItemQuantity(item) > 0);
+  let sellable = items.filter((item) => getItemQuantity(item) > 0);
+
+  let saleTreasureItemName =
+    game.i18n.localize?.("PF2E.SellProceedsItemName") ??
+    game.i18n.localize?.("PF2E.SellProceeds") ??
+    SELL_PROCEEDS_DEFAULT_NAME;
+
+  let sellFolderId = null;
+  const sellFolderItem = items.find((item) => item?.folder?.name === SELL_LOOT_ACTOR_NAME);
+  sellFolderId = getFolderId(sellFolderItem?.folder);
+
+  if (!sellFolderId) {
+    const folderCollections = [actor.items?.directory?.folders, actor.folders, game?.folders];
+    for (const collection of folderCollections) {
+      if (typeof collection?.find !== "function") continue;
+      const found = collection.find((folder) => {
+        if (!folder) return false;
+        if (folder?.name !== SELL_LOOT_ACTOR_NAME) return false;
+        if (folder?.type && folder.type !== "Item") return false;
+        return true;
+      });
+      if (found?.id) {
+        sellFolderId = found.id;
+        break;
+      }
+    }
+  }
+
+  const treasureItems = actor.items.filter((item) => item.type === "treasure");
+  let existingTreasure = null;
+
+  if (sellFolderId) {
+    existingTreasure = treasureItems.find((item) => getFolderId(item.folder) === sellFolderId);
+  }
+
+  if (!existingTreasure) {
+    existingTreasure = treasureItems.find((item) => item.folder?.name === SELL_LOOT_ACTOR_NAME);
+  }
+
+  if (!existingTreasure) {
+    existingTreasure = treasureItems.find((item) => item.name === saleTreasureItemName);
+  }
+
+  if (existingTreasure) {
+    saleTreasureItemName = existingTreasure.name ?? saleTreasureItemName;
+    sellable = sellable.filter((item) => item.id !== existingTreasure.id);
+  }
+
   if (!sellable.length) {
     ui.notifications?.warn?.(game.i18n.localize?.("PF2E.SellNoItems") ?? "There are no items to sell.");
     return;
@@ -172,60 +219,10 @@ const performSale = async (actor, percentage) => {
 
   const copperEarned = Math.max(0, Math.floor(copperTotal + 0.0001));
 
-  let saleTreasureItem = null;
-  let saleTreasureItemName = null;
+  let saleTreasureItem = existingTreasure ?? null;
   let totalCopperAfterSale = 0;
 
   if (copperEarned > 0) {
-    saleTreasureItemName =
-      game.i18n.localize?.("PF2E.SellProceedsItemName") ??
-      game.i18n.localize?.("PF2E.SellProceeds") ??
-      SELL_PROCEEDS_DEFAULT_NAME;
-
-    let sellFolderId = null;
-    const sellFolderItem = items.find((item) => item?.folder?.name === SELL_LOOT_ACTOR_NAME);
-    sellFolderId = getFolderId(sellFolderItem?.folder);
-
-    if (!sellFolderId) {
-      const folderCollections = [
-        actor.items?.directory?.folders,
-        actor.folders,
-        game?.folders,
-      ];
-      for (const collection of folderCollections) {
-        if (typeof collection?.find !== "function") continue;
-        const found = collection.find((folder) => {
-          if (!folder) return false;
-          if (folder?.name !== SELL_LOOT_ACTOR_NAME) return false;
-          if (folder?.type && folder.type !== "Item") return false;
-          return true;
-        });
-        if (found?.id) {
-          sellFolderId = found.id;
-          break;
-        }
-      }
-    }
-
-    const treasureItems = actor.items.filter((item) => item.type === "treasure");
-    let existingTreasure = null;
-
-    if (sellFolderId) {
-      existingTreasure = treasureItems.find(
-        (item) => getFolderId(item.folder) === sellFolderId
-      );
-    }
-
-    if (!existingTreasure) {
-      existingTreasure = treasureItems.find(
-        (item) => item.folder?.name === SELL_LOOT_ACTOR_NAME
-      );
-    }
-
-    if (!existingTreasure) {
-      existingTreasure = treasureItems.find((item) => item.name === saleTreasureItemName);
-    }
-
     if (existingTreasure) {
       const existingCopper = coinsToCopper(existingTreasure.system?.price?.value);
       totalCopperAfterSale = existingCopper + copperEarned;
