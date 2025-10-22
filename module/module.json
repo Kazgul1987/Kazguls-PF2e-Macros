@@ -24,7 +24,6 @@
   "esmodules": [],
   "scripts": [
     "macros/pick-a-lock.js",
-    "macros/quick-damage-roller.js",
     "scripts/journal-counter.js",
     "scripts/quick-damage-roller.js"
   ],
