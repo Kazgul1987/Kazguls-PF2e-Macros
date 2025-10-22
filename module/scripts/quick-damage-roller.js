@@ -375,7 +375,7 @@ Hooks.once("init", () => {
       editable: [
         {
           key: "KeyD",
-          modifiers: ["CONTROL", "SHIFT"],
+          modifiers: ["Control", "Shift"],
         },
       ],
       restricted: false,
@@ -391,7 +391,7 @@ Hooks.once("init", () => {
       editable: [
         {
           key: "KeyC",
-          modifiers: ["ALT"],
+          modifiers: ["Alt"],
         },
       ],
       restricted: true,
