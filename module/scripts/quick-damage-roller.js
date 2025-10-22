@@ -58,6 +58,73 @@ const DAMAGE_ALIASES = {
   void: "void",
 };
 
+const STATISTIC_ALIASES = {
+  acr: "acrobatics",
+  acrobatics: "acrobatics",
+  arc: "arcana",
+  arcana: "arcana",
+  ath: "athletics",
+  athletics: "athletics",
+  cra: "crafting",
+  crafting: "crafting",
+  dec: "deception",
+  deception: "deception",
+  dip: "diplomacy",
+  diplomacy: "diplomacy",
+  for: "fortitude",
+  fort: "fortitude",
+  fortitude: "fortitude",
+  int: "intimidation",
+  intimidation: "intimidation",
+  med: "medicine",
+  medicine: "medicine",
+  nat: "nature",
+  nature: "nature",
+  occ: "occultism",
+  occultism: "occultism",
+  per: "performance",
+  performance: "performance",
+  perc: "perception",
+  perception: "perception",
+  rel: "religion",
+  religion: "religion",
+  soc: "society",
+  society: "society",
+  ste: "stealth",
+  stealth: "stealth",
+  sur: "survival",
+  survival: "survival",
+  thi: "thievery",
+  thievery: "thievery",
+  wil: "will",
+  will: "will",
+  ref: "reflex",
+  reflex: "reflex",
+};
+
+const STATISTIC_LABELS = {
+  acrobatics: "Acrobatics",
+  arcana: "Arcana",
+  athletics: "Athletics",
+  crafting: "Crafting",
+  deception: "Deception",
+  diplomacy: "Diplomacy",
+  fortitude: "Fortitude",
+  intimidation: "Intimidation",
+  medicine: "Medicine",
+  nature: "Nature",
+  occultism: "Occultism",
+  performance: "Performance",
+  perception: "Perception",
+  reflex: "Reflex",
+  religion: "Religion",
+  society: "Society",
+  stealth: "Stealth",
+  survival: "Survival",
+  thievery: "Thievery",
+  will: "Will",
+};
+
 let activePrompt = null;
 
 const getDamageLabel = (type) => {
@@ -76,6 +143,13 @@ const focusPromptInput = (dialog) => {
     input.focus();
     input.select?.();
   }
+};
+
+const getStatisticLabel = (statistic) => {
+  const label = STATISTIC_LABELS[statistic];
+  if (label) return label;
+  if (typeof statistic !== "string" || !statistic) return "";
+  return statistic.replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 const parseDamageInput = (rawInput) => {
@@ -108,6 +182,37 @@ const parseDamageInput = (rawInput) => {
     formulaWithType,
     damageType,
     damageLabel,
+  };
+};
+
+const parseCheckInput = (rawInput) => {
+  const trimmed = rawInput?.trim();
+  if (!trimmed) {
+    return { error: "Please enter a skill or save to roll." };
+  }
+
+  const match = trimmed.match(/^([A-Za-z]+)\s*(?:[,\s]+(\d+))?$/);
+  if (!match) {
+    return {
+      error: "Invalid check input. Use formats like 'perc' or 'perc 19'.",
+    };
+  }
+
+  const alias = match[1].toLowerCase();
+  const statistic = STATISTIC_ALIASES[alias];
+  if (!statistic) {
+    return { error: `Unknown skill or save code: ${alias}.` };
+  }
+
+  const dc = match[2] ? Number.parseInt(match[2], 10) : null;
+  if (Number.isNaN(dc)) {
+    return { error: "DC must be a number." };
+  }
+
+  return {
+    statistic,
+    label: getStatisticLabel(statistic),
+    dc,
   };
 };
 
@@ -144,6 +249,55 @@ const executeDamageRoll = async (rawInput, dialog) => {
   return true;
 };
 
+const postCheckToChat = async ({ statistic, dc, label }) => {
+  const dcPart = typeof dc === "number" ? `|dc:${dc}` : "";
+  const link = `@Check[${statistic}${dcPart}]`;
+  const content = `Quick Check (${label}) ${link}`;
+
+  try {
+    await globalThis.ChatMessage?.create?.({ content });
+  } catch (error) {
+    console.error(`${MODULE_ID} | Failed to create check message`, error);
+    ui.notifications?.error?.("Failed to post the check to chat.");
+    return false;
+  }
+
+  return true;
+};
+
+const executeCheck = async (rawInput, dialog) => {
+  const parsed = parseCheckInput(rawInput);
+  if (parsed.error) {
+    ui.notifications?.warn?.(parsed.error);
+    return false;
+  }
+
+  const success = await postCheckToChat(parsed);
+  if (!success) return false;
+
+  if (dialog) focusPromptInput(dialog);
+  return true;
+};
+
+const dispatchInput = (rawInput, dialog) => {
+  const trimmed = rawInput?.trim();
+  if (!trimmed) {
+    ui.notifications?.warn?.("Please enter a value to roll.");
+    return Promise.resolve(false);
+  }
+
+  if (/^\d/.test(trimmed)) {
+    return executeDamageRoll(trimmed, dialog);
+  }
+
+  if (/^[A-Za-z]/.test(trimmed)) {
+    return executeCheck(trimmed, dialog);
+  }
+
+  ui.notifications?.warn?.("Unrecognized input. Begin with a formula or skill.");
+  return Promise.resolve(false);
+};
+
 function openQuickDamagePrompt() {
   if (activePrompt?.rendered) {
     activePrompt.bringToTop?.();
@@ -154,12 +308,12 @@ function openQuickDamagePrompt() {
   const id = `${MODULE_ID}-quick-damage-prompt`;
   const dialog = new Dialog(
     {
-      title: "Quick Damage Roller",
+      title: "Quick Damage / Check Roller",
       content: `
         <form class="quick-damage-roller" autocomplete="off">
           <div class="form-group">
-            <label for="quick-damage-input">Damage</label>
-            <input id="quick-damage-input" type="text" name="damage-formula" placeholder="3d6+4 fir" autofocus />
+            <label for="quick-damage-input">Damage or Check</label>
+            <input id="quick-damage-input" type="text" name="damage-formula" placeholder="3d6+4 fir  |  perc, 19" autofocus />
           </div>
         </form>
       `,
@@ -173,7 +327,7 @@ function openQuickDamagePrompt() {
         if (!input) return;
 
         const handleSubmit = async () => {
-          const success = await executeDamageRoll(input.value, dialog);
+          const success = await dispatchInput(input.value, dialog);
           if (success) {
             input.select();
           }
