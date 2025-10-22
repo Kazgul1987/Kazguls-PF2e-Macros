@@ -13,8 +13,11 @@ const DAMAGE_TYPES = {
   piercing: "Piercing",
   poison: "Poison",
   positive: "Positive",
+  spirit: "Spirit",
   slashing: "Slashing",
   sonic: "Sonic",
+  vitality: "Vitality",
+  void: "Void",
 };
 
 const DAMAGE_ALIASES = {
@@ -43,10 +46,16 @@ const DAMAGE_ALIASES = {
   poison: "poison",
   pos: "positive",
   positive: "positive",
+  spi: "spirit",
+  spirit: "spirit",
   sla: "slashing",
   slashing: "slashing",
   son: "sonic",
   sonic: "sonic",
+  vit: "vitality",
+  vitality: "vitality",
+  voi: "void",
+  void: "void",
 };
 
 let activePrompt = null;
