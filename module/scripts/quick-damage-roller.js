@@ -384,6 +384,22 @@ Hooks.once("init", () => {
         return true;
       },
     });
+
+    game.keybindings?.register?.(MODULE_ID, "openCheckPrompt", {
+      name: "GM Check Prompt",
+      hint: "Open the GM check prompt dialog.",
+      editable: [
+        {
+          key: "KeyC",
+          modifiers: ["ALT"],
+        },
+      ],
+      restricted: true,
+      onDown: () => {
+        game.pf2e?.gm?.checkPrompt?.();
+        return true;
+      },
+    });
   } catch (error) {
     console.error(`${MODULE_ID} | Failed to register keybinding`, error);
   }
