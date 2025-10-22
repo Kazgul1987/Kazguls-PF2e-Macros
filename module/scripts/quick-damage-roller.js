@@ -298,21 +298,21 @@ const dispatchInput = (rawInput, dialog) => {
   return Promise.resolve(false);
 };
 
-function openQuickDamagePrompt() {
+function openQuickPrompt() {
   if (activePrompt?.rendered) {
     activePrompt.bringToTop?.();
     focusPromptInput(activePrompt);
     return activePrompt;
   }
 
-  const id = `${MODULE_ID}-quick-damage-prompt`;
+  const id = `${MODULE_ID}-quick-prompt`;
   const dialog = new Dialog(
     {
-      title: "Quick Damage / Check Roller",
+      title: "Quick Prompt",
       content: `
         <form class="quick-damage-roller" autocomplete="off">
           <div class="form-group">
-            <label for="quick-damage-input">Damage or Check</label>
+            <label for="quick-damage-input">Roll Damage or Check</label>
             <input id="quick-damage-input" type="text" name="damage-formula" placeholder="3d6+4 fir  |  perc, 19" autofocus />
           </div>
         </form>
@@ -363,13 +363,15 @@ function openQuickDamagePrompt() {
 }
 
 globalThis.kazgulsPf2e = globalThis.kazgulsPf2e ?? {};
-globalThis.kazgulsPf2e.quickDamagePrompt = globalThis.kazgulsPf2e.quickDamagePrompt ?? openQuickDamagePrompt;
+globalThis.kazgulsPf2e.quickPrompt = globalThis.kazgulsPf2e.quickPrompt ?? openQuickPrompt;
+globalThis.kazgulsPf2e.quickDamagePrompt =
+  globalThis.kazgulsPf2e.quickDamagePrompt ?? openQuickPrompt;
 
 Hooks.once("init", () => {
   try {
-    game.keybindings?.register?.(MODULE_ID, "quickDamagePrompt", {
-      name: "Quick Damage Prompt",
-      hint: "Open the quick damage roller dialog.",
+    game.keybindings?.register?.(MODULE_ID, "quickPrompt", {
+      name: "Quick Prompt",
+      hint: "Open the quick prompt dialog.",
       editable: [
         {
           key: "KeyD",
@@ -378,7 +380,7 @@ Hooks.once("init", () => {
       ],
       restricted: false,
       onDown: () => {
-        openQuickDamagePrompt();
+        openQuickPrompt();
         return true;
       },
     });
@@ -387,5 +389,6 @@ Hooks.once("init", () => {
   }
 
   globalThis.kazgulsPf2e = globalThis.kazgulsPf2e ?? {};
-  globalThis.kazgulsPf2e.quickDamagePrompt = openQuickDamagePrompt;
+  globalThis.kazgulsPf2e.quickPrompt = openQuickPrompt;
+  globalThis.kazgulsPf2e.quickDamagePrompt = openQuickPrompt;
 });
