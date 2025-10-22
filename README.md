@@ -5,7 +5,29 @@ This Foundry VTT module collects utility macros for the Pathfinder Second Editio
 ## Available Macros
 
 - **Pick a Lock** – Provides an interactive dialog for selecting a skill and rolling to pick a lock, including support for lore skills and inline check requests.
+- **Quick Damage Roller** – Opens a lightweight prompt for building a damage roll with a PF2e damage type tag and sends the result straight to chat.
 
 ## Using the Compendium
 
 After installing or updating the module, open the **Kazgul's PF2e Macros** compendium found under the Macro tab in the Compendium Browser. Drag the desired macro into your hotbar or macro directory to import it into your world.
+
+## Quick Damage Roller
+
+Press **Ctrl+Shift+D** (configurable from the Foundry keybindings settings) or run the bundled macro to open the quick damage prompt. Enter a roll formula followed by one of the supported damage codes and press <kbd>Enter</kbd> to execute the roll. The prompt stays open so you can queue up additional rolls; press <kbd>Esc</kbd> to close it.
+
+Commonly used aliases include:
+
+| Code | Damage Type |
+|------|-------------|
+| `fir`, `fire` | Fire |
+| `col`, `cold` | Cold |
+| `ele`, `elec` | Electricity |
+| `aci` | Acid |
+| `poi` | Poison |
+| `blu` | Bludgeoning |
+| `pie` | Piercing |
+| `sla` | Slashing |
+| `son` | Sonic |
+| `neg`, `pos` | Negative, Positive |
+
+Any recognized code will append the appropriate damage tag (for example, `3d6+4 fir` becomes `3d6+4[fire]`) before rolling and posting the result to chat.
