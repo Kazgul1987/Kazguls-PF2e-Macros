@@ -23,7 +23,6 @@
   "flags": {},
   "esmodules": [],
   "scripts": [
-    "macros/pick-a-lock.js",
     "scripts/journal-counter.js",
     "scripts/quick-damage-roller.js"
   ],
